@@ -1,0 +1,9 @@
+{
+  "name": "Crowler",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "jsdom": "^22.1.0",
+    "puppeteer": "^21.5.0"
+  }
+}
