@@ -1,6 +1,9 @@
 import puppeteer from 'puppeteer';
 import { JSDOM } from 'jsdom';
 
+const pagesForCrowler = process.argv[2];
+const timeOutMs = process.argv[3];
+
 (async () => {
   const arrayFromProducts = [];
   let flag = false;
@@ -36,16 +39,20 @@ import { JSDOM } from 'jsdom';
   });
 
   const { document } = new JSDOM(body).window;
-  document
+  await document
     .querySelectorAll('div.widget-search-result-container.ix div.ui7.i8u')
     .forEach((elem) => {
       arrayFromProducts.push({
-        name: elem.querySelector('span.tsBody500Medium').innerHTML,
-        priceSale: String(elem.querySelector('.ui8 span.c3118-a1').innerHTML)
-          .replace(/\s/g, '')
-          .replace(/\₽/g, ''),
-        link: elem.querySelector('a').href,
-        article: String(elem.querySelector('a').href).match(/[0-9]{10}/)[0],
+        [String(elem.querySelector('a').href).match(/[0-9]{10}/)[0]]: {
+          name: elem.querySelector('span.tsBody500Medium').innerHTML,
+          priceSale: Number(
+            String(elem.querySelector('.ui8 span.c3118-a1').innerHTML)
+              .replace(/\s/g, '')
+              .replace(/\₽/g, '')
+          ),
+          link: elem.querySelector('a').href,
+          article: String(elem.querySelector('a').href).match(/[0-9]{10}/)[0],
+        },
       });
     });
 
@@ -54,18 +61,28 @@ import { JSDOM } from 'jsdom';
     await browser.close();
   }
 
-  while (flag == true && pageStartAfterFirstPage <= 10) {
-    const browserTwo = await puppeteer.launch({ headless: false });
+  while (
+    flag == true &&
+    pageStartAfterFirstPage <= (pagesForCrowler ? pagesForCrowler : 5)
+  ) {
+    const browserTwo = await puppeteer.launch({
+      devtools: false,
+      headless: false,
+      slowMo: timeOutMs ? timeOutMs : 500,
+    });
     const pageTwo = await browserTwo.newPage();
 
-    await pageTwo.goto(pagespaginator.get('page' + pageStartAfterFirstPage));
+    await pageTwo.goto(pagespaginator.get('page' + pageStartAfterFirstPage), {
+      waitUntil: 'networkidle2',
+    });
 
     // Set screen size
-    await pageTwo.setViewport({ width: 1440, height: 800 });
-
-    // await pageTwo.waitForSelector('div.ui7.i8u', {
-    //   timeout: 5000,
-    // });
+    await pageTwo.setViewport({ width: 1440, height: 1000 });
+    await pageTwo.evaluate(() => {
+      window.scrollTo(0, 500);
+      window.scrollTo(500, 1500);
+      window.scrollTo(1500, document.body.scrollHeight);
+    });
     let body2 = await pageTwo.evaluate(() => {
       return document.body.innerHTML;
     });
@@ -73,25 +90,59 @@ import { JSDOM } from 'jsdom';
       new JSDOM(body2).window.document
         .querySelectorAll('div.widget-search-result-container.ix div.ui7.i8u')
         .forEach((elem) => {
+          // console.log(
+          //   `${pageStartAfterFirstPage} и результат перебора - ${elem}`
+          // );
           arrayFromProducts.push({
-            name:
-              elem.querySelector('span.tsBody500Medium').innerHTML + 'page2',
-            priceSale: String(
-              elem.querySelector('.ui8 span.c3118-a1').innerHTML
-            )
-              .replace(/\s/g, '')
-              .replace(/\₽/g, ''),
-            link: elem.querySelector('a').href,
-            article: String(elem.querySelector('a').href).match(/[0-9]{10}/)[0],
+            [String(elem.querySelector('a').href).match(/[0-9]{10}/)[0]]: {
+              name:
+                elem.querySelector('span.tsBody500Medium').innerHTML + 'page2',
+              priceSale: Number(
+                String(elem.querySelector('.ui8 span.c3118-a1').innerHTML)
+                  .replace(/\s/g, '')
+                  .replace(/\₽/g, '')
+              ),
+              link: elem.querySelector('a').href,
+              article: String(elem.querySelector('a').href).match(
+                /[0-9]{10}/
+              )[0],
+            },
           });
         });
-      pageStartAfterFirstPage++;
+
       await browserTwo.close();
+      pageStartAfterFirstPage++;
     } else {
       flag = false;
       await browserTwo.close();
     }
   }
-  console.log(arrayFromProducts);
-  console.log(arrayFromProducts.length);
+
+  if (arrayFromProducts.length < 60) {
+    console.log(
+      'Ошибка с парсингом, товаров меньше 60 штук, скорей всего недостаточная задержка. Обратиться к разработчику или попробовать запустить скрипт повторно c с большей задержкой, например node crowler.js 3 1000, где crowler.js - имя или путь до исполняемого файла. 3 - количество страниц для прохода. 1000 - задержка в миллисекундах (1000 мс = 1 сек) '
+    );
+  } else {
+    const finalresiltObject = arrayFromProducts.reduce(
+      (finalObject, current) => ({
+        ...finalObject,
+        ...current,
+      })
+    );
+
+    fetch('http://holod.grappej5.beget.tech/parserozon', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(finalresiltObject),
+    })
+      .then((responce) => responce.text())
+      .then((data) => {
+        console.log(`Успешная отправка на сервер для обработки - ${data}`);
+      })
+      .catch((error) => {
+        console.log(`Ошибка с оправкой на сервер - ${error}`);
+      });
+  }
 })();
