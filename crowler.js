@@ -79,10 +79,18 @@ const timeOutMs = process.argv[3];
     // Set screen size
     await pageTwo.setViewport({ width: 1440, height: 1000 });
     await pageTwo.evaluate(() => {
-      window.scrollTo(0, 500);
-      window.scrollTo(500, 1500);
+      window.scrollTo(0, 400);
+    });
+    await pageTwo.evaluate(() => {
+      window.scrollTo(400, 900);
+    });
+    await pageTwo.evaluate(() => {
+      window.scrollTo(900, 1500);
+    });
+    await pageTwo.evaluate(() => {
       window.scrollTo(1500, document.body.scrollHeight);
     });
+
     let body2 = await pageTwo.evaluate(() => {
       return document.body.innerHTML;
     });
