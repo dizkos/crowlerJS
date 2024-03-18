@@ -1,10 +1,16 @@
 {
+  "scripts": {
+    "start": "node newcrowler.js 18",
+    "test": "node test.js"
+  },
   "name": "Crowler",
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
+    "axios": "^1.6.7",
+    "chrome-launcher": "^1.1.0",
     "jsdom": "^22.1.0",
     "node": "^21.1.0",
-    "puppeteer": "^21.5.0"
+    "puppeteer": "^22.4.1"
   }
 }

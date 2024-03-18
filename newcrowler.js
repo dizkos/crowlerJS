@@ -1,10 +1,13 @@
 import puppeteer from 'puppeteer';
 import { JSDOM } from 'jsdom';
+import * as chromeLauncher from 'chrome-launcher';
+import axios from 'axios';
 
 const arrayFromProducts = [];
 
 const pagesForCrowler = process.argv[2];
 
+console.log(process.argv);
 const getProdFirstPage = async () => {
   // По умолчанию
 
@@ -14,15 +17,19 @@ const getProdFirstPage = async () => {
     pages = pagesForCrowler;
   }
 
-  for (let i = 1; i <= pages; i++) {
-    // Загружаем хром
-    const browser = await puppeteer.launch({
-      executablePath:
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      headless: false,
-    });
+  const browser = await puppeteer.launch({
+    headless: false,
+  });
 
+  for (let i = 1; i <= pages; i++) {
     const page = await browser.newPage();
+
+    console.log(i);
+
+    //Перед запуском берем свежие coockies с ozon при помощи расширения EditThisCookie
+    const cookies = [];
+
+    await page.setCookie(...cookies);
 
     let link;
     if (i === 1) {
@@ -39,18 +46,18 @@ const getProdFirstPage = async () => {
     // Set screen size
     await page.setViewport({ width: 1440, height: 800 });
 
-    const resultCheck = await page.waitForSelector('button.rb', {
-      timeout: 3000,
-    });
-    console.log('дошло' + i);
-    if (resultCheck) {
-      await page.click('button.rb');
-      await page.waitForNavigation();
-      await page.reload();
-    }
+    // const resultCheck = await page.waitForSelector('button.rb', {
+    //   timeout: 3000,
+    // });
+
+    // if (resultCheck) {
+    //   await page.click('button.rb');
+    //   await page.waitForNavigation();
+    //   await page.reload();
+    // }
 
     await page.waitForSelector(
-      'div.widget-search-result-container.yi9 div.y9i div.w4i.w5i.tile-root',
+      'div.widget-search-result-container.ix9 div.i5v.i6v.tile-root',
       { timeout: 5000 }
     );
 
@@ -68,14 +75,17 @@ const getProdFirstPage = async () => {
 
     await document
       .querySelectorAll(
-        'div.widget-search-result-container.yi9 div.y9i div.w4i.w5i.tile-root'
+        'div.widget-search-result-container.ix9  div.i5v.i6v.tile-root'
       )
       .forEach((elem) =>
         arrayFromProducts.push({
           [String(elem.querySelector('a').href).match(/[0-9]{10}/)[0]]: {
             name: elem.querySelector('span.tsBody500Medium').innerHTML,
             priceSale: Number(
-              String(elem.querySelector('div.c3126-a0 span.c3126-a1').innerHTML)
+              String(
+                elem.querySelector('div.c3128-a0 span.tsHeadline500Medium')
+                  .innerHTML
+              )
                 .replace(/\s/g, '')
                 .replace(/\₽/g, '')
             ),
@@ -85,8 +95,10 @@ const getProdFirstPage = async () => {
         })
       );
 
-    await browser.close();
+    await page.close();
   }
+
+  await browser.close();
 
   return arrayFromProducts;
 };
